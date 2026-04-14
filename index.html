@@ -5,498 +5,180 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>网页小助手</title>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: #000; color: #e0e0e0; font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; min-height: 100vh; padding: 30px; }
-.container { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-.full-width { grid-column: 1 / -1; }
-.shortcuts { display: flex; flex-wrap: wrap; gap: 18px; justify-content: center; padding: 20px 0; }
-.shortcut-item { display: flex; flex-direction: column; align-items: center; text-decoration: none; color: #ccc; width: 80px; transition: transform .2s; position: relative; }
-.shortcut-item:hover { transform: scale(1.1); color: #fff; }
-.shortcut-icon { width: 52px; height: 52px; border-radius: 14px; background: #1a1a1a; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 6px; border: 1px solid #333; }
-.shortcut-item span { font-size: 12px; text-align: center; }
-.shortcut-item.empty .shortcut-icon { color: #444; font-size: 28px; border-style: dashed; }
-.shortcut-item.empty span { color: #444; }
-.shortcut-item .shortcut-del { display: none; position: absolute; top: -6px; right: 2px; background: #e91e63; color: #fff; border: none; border-radius: 50%; width: 18px; height: 18px; font-size: 11px; cursor: pointer; line-height: 18px; text-align: center; padding: 0; }
-.shortcut-item:hover .shortcut-del { display: block; }
-.link-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 2000; }
-.link-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); background: #111; border: 1px solid #333; border-radius: 16px; padding: 24px; z-index: 2001; width: 320px; }
-.link-modal h3 { color: #ddd; font-size: 15px; margin-bottom: 14px; font-weight: 500; }
-.link-modal input { display: block; width: 100%; background: #1a1a1a; border: 1px solid #333; color: #eee; padding: 10px 12px; border-radius: 8px; font-size: 14px; margin-bottom: 10px; }
-.link-modal .modal-btns { display: flex; gap: 10px; justify-content: flex-end; margin-top: 6px; }
-.link-modal .modal-btns button { padding: 8px 18px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
-.link-modal .btn-save { background: #4caf50; color: #fff; }
-.link-modal .btn-cancel { background: #333; color: #ccc; }
-.card { background: #111; border: 1px solid #222; border-radius: 16px; padding: 20px; }
-.card h2 { font-size: 16px; color: #888; margin-bottom: 14px; font-weight: 500; }
-.countdown-grid { display: flex; flex-direction: column; gap: 10px; }
-.countdown-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: #1a1a1a; border-radius: 10px; }
-.countdown-item .label { font-size: 14px; display: flex; align-items: center; gap: 6px; }
-.countdown-item .label .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.countdown-item .days { font-size: 22px; font-weight: 700; }
-.countdown-item .days small { font-size: 12px; font-weight: 400; color: #888; margin-left: 4px; }
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#000;color:#e0e0e0;font-family:'Segoe UI','Microsoft YaHei',sans-serif;min-height:100vh;padding:24px 32px;user-select:none;}
+
+/* 右键菜单 */
+.ctx-menu{display:none;position:fixed;background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:6px 0;z-index:9999;min-width:120px;box-shadow:0 4px 20px rgba(0,0,0,.6);}
+.ctx-menu .ctx-item{padding:8px 16px;font-size:13px;cursor:pointer;color:#ccc;}
+.ctx-menu .ctx-item:hover{background:#282828;color:#fff;}
+.ctx-menu .ctx-item.danger{color:#e91e63;}
+
+/* 主布局：左 中 右 三栏 */
+.dashboard{display:grid;grid-template-columns:1fr 1fr 560px;gap:20px;height:calc(100vh - 48px);}
+.col-left,.col-mid{display:flex;flex-direction:column;gap:16px;overflow-y:auto;}
+.right-panel{background:#050505;border:1px solid #111;border-radius:16px;padding:20px;overflow-y:auto;}
+
+/* 功能卡片区 */
+.module-card{background:#0d0d0d;border:1px solid #161616;border-radius:16px;padding:20px;position:relative;transition:box-shadow .2s;}
+.module-card:hover{box-shadow:0 0 0 1px #222;}
+.module-card h3{font-size:15px;color:#888;font-weight:500;margin-bottom:12px;}
+
+/* 网址区 */
+.links-grid{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;align-content:flex-start;}
+.link-item{display:flex;flex-direction:column;align-items:center;width:80px;cursor:pointer;text-decoration:none;color:#ccc;transition:transform .15s;position:relative;}
+.link-item:hover{transform:scale(1.08);color:#fff;}
+.link-icon{width:54px;height:54px;border-radius:14px;background:#1a1a1a;border:1px solid #282828;display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:6px;}
+.link-item span{font-size:12px;text-align:center;line-height:1.3;max-width:76px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 </style>
 </head>
 <body>
-<div class="container">
 
-<style>
-.calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.calendar-header button { background: none; border: 1px solid #333; color: #ccc; border-radius: 8px; padding: 4px 12px; cursor: pointer; font-size: 14px; }
-.calendar-header button:hover { background: #222; }
-.calendar-header .month-year { font-size: 16px; font-weight: 600; color: #ddd; }
-.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
-.calendar-grid .weekday { font-size: 12px; color: #555; padding: 6px 0; }
-.calendar-grid .day { font-size: 13px; padding: 6px 0 4px; border-radius: 8px; cursor: default; position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px; }
-.calendar-grid .day .lunar { font-size: 9px; color: #555; line-height: 1; }
-.calendar-grid .day.today { background: #f5c542; color: #000; font-weight: 700; }
-.calendar-grid .day.today .lunar { color: #555; }
-.calendar-grid .day.other-month { color: #333; }
-.calendar-grid .day.other-month .lunar { color: #222; }
-.calendar-grid .day.event-marked { border: 2px solid var(--evt-color, #4caf50); }
-/* 事件管理面板 */
-.evt-panel { display:none; background:#0a0a0a; border:1px solid #222; border-radius:12px; padding:16px; margin-bottom:14px; }
-.evt-panel.open { display:block; }
-.evt-form { display:flex; gap:6px; flex-wrap:nowrap; align-items:center; margin-bottom:12px; }
-.evt-form input, .evt-form select { background:#1a1a1a; border:1px solid #333; color:#eee; padding:6px 10px; border-radius:8px; font-size:13px; }
-.evt-form button { border:none; padding:6px 14px; border-radius:8px; cursor:pointer; font-size:13px; color:#fff; }
-.evt-list-item { background:#1a1a1a; padding:6px 12px; border-radius:8px; display:flex; align-items:center; gap:8px; border:1px solid #222; font-size:13px; margin-bottom:6px; }
-.evt-list-item .evt-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
-.evt-list-item button { background:none; border:none; cursor:pointer; font-size:14px; padding:0 4px; }
-</style>
+<!-- 右键菜单 -->
+<div class="ctx-menu" id="ctxMenu"></div>
 
-  <div class="full-width">
-    <div class="shortcuts" id="shortcuts"></div>
-  </div>
-
-  <!-- 日历卡片 -->
-  <div class="card" style="position:relative;">
-    <h2>🗓️ 日历</h2>
-    <button onclick="toggleMemoPanel()" style="position:absolute;top:16px;right:16px;background:none;border:1px solid #333;color:#888;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:13px;">📝 备忘</button>
-    <div id="memoPanel" class="evt-panel">
-      <div class="evt-form">
-        <input id="memoDate" type="date" style="width:140px;">
-        <input id="memoText" type="text" placeholder="备忘内容" style="flex:1;min-width:100px;">
-        <button onclick="addMemo()" style="background:#5c6bc0;">添加</button>
-      </div>
-      <div id="memoList"></div>
-    </div>
-    <div class="calendar-header">
-      <button onclick="changeMonth(-1)">◀</button>
-      <span class="month-year" id="monthYear"></span>
-      <button onclick="changeMonth(1)">▶</button>
-    </div>
-    <div class="calendar-grid" id="calendarGrid"></div>
-  </div>
-
-  <!-- 倒计时卡片 -->
-  <div class="card" style="position:relative;">
-    <h2>📅 倒计时</h2>
-    <button onclick="toggleEvtPanel()" style="position:absolute;top:16px;right:16px;background:none;border:1px solid #333;color:#888;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:13px;">✎ 管理</button>
-    <div class="evt-panel" id="evtPanel">
-      <div class="evt-form">
-        <input id="evtName" type="text" placeholder="名称" style="width:80px;">
-        <input id="evtIcon" type="text" placeholder="😀" maxlength="4" style="width:40px;text-align:center;font-size:16px;cursor:pointer;" readonly onclick="toggleEvtEmojiPicker()">
-        <select id="evtCycle">
-          <option value="monthly">按月循环</option>
-          <option value="yearly">按年循环</option>
-          <option value="yearly-lunar">按年循环(农历)</option>
-        </select>
-        <input id="evtMonth" type="number" min="1" max="12" placeholder="月" style="width:46px;">
-        <input id="evtDay" type="number" min="1" max="31" placeholder="日" style="width:46px;">
-        <input id="evtColor" type="color" value="#4caf50" style="width:36px;height:32px;padding:2px;border-radius:8px;cursor:pointer;">
-        <button onclick="addEvent()" style="background:#4caf50;">添加</button>
-      </div>
-      <div id="evtEmojiPicker" style="display:none;margin-bottom:10px;background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:10px;max-height:180px;overflow-y:auto;">
-        <div style="display:flex;flex-wrap:wrap;gap:4px;" id="evtEmojiGrid"></div>
-      </div>
-      <div id="evtList"></div>
-    </div>
-    <div class="countdown-grid" id="countdowns"></div>
+<!-- 添加模块弹窗 -->
+<div id="addModuleOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:2000;"></div>
+<div id="addModuleModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#111;border:1px solid #333;border-radius:16px;padding:24px;z-index:2001;width:280px;">
+  <h3 style="color:#ddd;font-size:15px;margin-bottom:16px;">添加模块</h3>
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    <button data-add-module="calendar" style="background:#1a1a1a;border:1px solid #333;color:#ccc;padding:12px;border-radius:10px;cursor:pointer;font-size:14px;text-align:left;">🗓️ 日历</button>
+    <button data-add-module="countdown" style="background:#1a1a1a;border:1px solid #333;color:#ccc;padding:12px;border-radius:10px;cursor:pointer;font-size:14px;text-align:left;">📅 倒计时</button>
+    <button data-add-module="workoff" style="background:#1a1a1a;border:1px solid #333;color:#ccc;padding:12px;border-radius:10px;cursor:pointer;font-size:14px;text-align:left;">⏰ 下班倒计时</button>
   </div>
 </div>
 
-<!-- 编辑快捷方式弹窗 -->
-<div class="link-modal-overlay" id="linkModalOverlay" onclick="closeLinkModal()"></div>
-<div class="link-modal" id="linkModal" style="display:none;">
-  <h3 id="linkModalTitle">编辑快捷方式</h3>
-  <input id="linkName" type="text" placeholder="名称（如：百度）" maxlength="10">
-  <input id="linkUrl" type="text" placeholder="网址（如：https://www.baidu.com）">
+<!-- 编辑网址弹窗 -->
+<div id="linkModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:2000;"></div>
+<div id="linkModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#111;border:1px solid #333;border-radius:16px;padding:24px;z-index:2001;width:320px;">
+  <h3 id="linkModalTitle" style="color:#ddd;font-size:15px;margin-bottom:14px;">添加网址</h3>
+  <input id="linkName" type="text" placeholder="名称" maxlength="10" style="display:block;width:100%;background:#1a1a1a;border:1px solid #333;color:#eee;padding:10px 12px;border-radius:8px;font-size:14px;margin-bottom:10px;">
+  <input id="linkUrl" type="text" placeholder="网址（如：www.baidu.com）" style="display:block;width:100%;background:#1a1a1a;border:1px solid #333;color:#eee;padding:10px 12px;border-radius:8px;font-size:14px;margin-bottom:10px;">
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
-    <span style="font-size:13px;color:#888;white-space:nowrap;">图标</span>
-    <input id="linkIcon" type="text" placeholder="emoji" maxlength="4" style="display:inline;width:52px;margin-bottom:0;text-align:center;font-size:18px;padding:8px 4px;" readonly onclick="toggleEmojiPicker()">
-    <label style="background:#333;color:#ccc;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px;white-space:nowrap;">
-      本地图片<input id="linkIconFile" type="file" accept="image/*" style="display:none;" onchange="onIconFileChange(event)">
-    </label>
+    <span style="font-size:13px;color:#888;">图标</span>
+    <input id="linkIcon" type="text" placeholder="emoji" maxlength="4" style="width:52px;text-align:center;font-size:18px;padding:8px 4px;background:#1a1a1a;border:1px solid #333;color:#eee;border-radius:8px;cursor:pointer;" readonly>
+    <label style="background:#333;color:#ccc;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px;white-space:nowrap;">本地图片<input id="linkIconFile" type="file" accept="image/*" style="display:none;"></label>
     <span id="iconPreview" style="font-size:13px;color:#555;"></span>
   </div>
   <div id="emojiPicker" style="display:none;margin-bottom:14px;background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:10px;max-height:200px;overflow-y:auto;">
-    <div style="display:flex;flex-wrap:wrap;gap:4px;" id="emojiGrid"></div>
+    <div id="emojiGrid" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
   </div>
-  <div class="modal-btns">
-    <button class="btn-cancel" onclick="closeLinkModal()">取消</button>
-    <button class="btn-save" onclick="saveLinkModal()">保存</button>
+  <div style="display:flex;gap:10px;justify-content:flex-end;">
+    <button id="linkCancelBtn" style="background:#333;color:#ccc;border:none;padding:8px 18px;border-radius:8px;cursor:pointer;font-size:14px;">取消</button>
+    <button id="linkSaveBtn" style="background:#4caf50;color:#fff;border:none;padding:8px 18px;border-radius:8px;cursor:pointer;font-size:14px;">保存</button>
   </div>
 </div>
 
+<!-- 事件管理弹窗 -->
+<div id="evtModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:2000;"></div>
+<div id="evtModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#111;border:1px solid #333;border-radius:16px;padding:24px;z-index:2001;width:420px;max-height:80vh;overflow-y:auto;">
+  <h3 style="color:#ddd;font-size:15px;margin-bottom:14px;">管理倒计时事件</h3>
+  <div style="display:flex;gap:6px;align-items:center;margin-bottom:12px;flex-wrap:nowrap;">
+    <input id="evtIcon" type="text" placeholder="😀" maxlength="4" style="width:40px;text-align:center;font-size:16px;cursor:pointer;background:#1a1a1a;border:1px solid #333;color:#eee;padding:6px;border-radius:8px;" readonly>
+    <input id="evtName" type="text" placeholder="名称" style="width:70px;background:#1a1a1a;border:1px solid #333;color:#eee;padding:6px 10px;border-radius:8px;font-size:13px;">
+    <select id="evtCycle" style="background:#1a1a1a;border:1px solid #333;color:#eee;padding:6px 4px;border-radius:8px;font-size:12px;width:68px;">
+      <option value="monthly">按月</option><option value="yearly">按年</option><option value="yearly-lunar">农历</option>
+    </select>
+    <input id="evtMonth" type="number" min="1" max="12" placeholder="月" style="width:40px;background:#1a1a1a;border:1px solid #333;color:#eee;padding:6px 6px;border-radius:8px;font-size:13px;">
+    <input id="evtDay" type="number" min="1" max="31" placeholder="日" style="width:40px;background:#1a1a1a;border:1px solid #333;color:#eee;padding:6px 6px;border-radius:8px;font-size:13px;">
+    <input id="evtColor" type="color" value="#4caf50" style="width:32px;height:32px;padding:2px;border-radius:8px;cursor:pointer;border:1px solid #333;">
+    <button id="evtAddBtn" style="background:#4caf50;color:#fff;border:none;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:13px;height:32px;white-space:nowrap;">添加</button>
+  </div>
+  <div id="evtEmojiPicker" style="display:none;margin-bottom:10px;background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:10px;max-height:160px;overflow-y:auto;">
+    <div id="evtEmojiGrid" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+  </div>
+  <div id="evtList"></div>
+  <div style="text-align:right;margin-top:12px;"><button id="evtCloseBtn" style="background:#333;color:#ccc;border:none;padding:8px 18px;border-radius:8px;cursor:pointer;font-size:14px;">关闭</button></div>
+</div>
+
+<!-- 下班倒计时设置弹窗 -->
+<div id="workModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:2000;"></div>
+<div id="workModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#111;border:1px solid #333;border-radius:16px;padding:24px;z-index:2001;width:340px;">
+  <h3 style="color:#ddd;font-size:15px;margin-bottom:14px;">⏰ 下班倒计时设置</h3>
+  <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center;">
+    <span style="font-size:13px;color:#888;">上班</span>
+    <input id="workStart" type="time" step="1" style="background:#1a1a1a;border:1px solid #333;color:#eee;padding:8px 12px;border-radius:8px;font-size:14px;flex:1;">
+  </div>
+  <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center;">
+    <span style="font-size:13px;color:#888;">下班</span>
+    <input id="workEnd" type="time" step="1" style="background:#1a1a1a;border:1px solid #333;color:#eee;padding:8px 12px;border-radius:8px;font-size:14px;flex:1;">
+  </div>
+  <div style="display:flex;gap:10px;margin-bottom:14px;align-items:center;">
+    <span style="font-size:13px;color:#888;">图片</span>
+    <label style="background:#333;color:#ccc;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px;">选择图片<input id="workImgFile" type="file" accept="image/*" style="display:none;"></label>
+    <span id="workImgPreview" style="font-size:13px;color:#555;"></span>
+  </div>
+  <div style="display:flex;gap:10px;justify-content:flex-end;">
+    <button id="workCancelBtn" style="background:#333;color:#ccc;border:none;padding:8px 18px;border-radius:8px;cursor:pointer;font-size:14px;">取消</button>
+    <button id="workSaveBtn" style="background:#4caf50;color:#fff;border:none;padding:8px 18px;border-radius:8px;cursor:pointer;font-size:14px;">保存</button>
+  </div>
+</div>
+
+<!-- 备忘录弹窗 -->
+<div id="memoModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:2000;"></div>
+<div id="memoModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#111;border:1px solid #333;border-radius:16px;padding:24px;z-index:2001;width:400px;max-height:80vh;overflow-y:auto;">
+  <h3 style="color:#ddd;font-size:15px;margin-bottom:14px;">📝 备忘录</h3>
+  <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;">
+    <input id="memoDate" type="date" style="background:#1a1a1a;border:1px solid #333;color:#eee;padding:6px 10px;border-radius:8px;font-size:13px;">
+    <input id="memoText" type="text" placeholder="备忘内容" style="flex:1;background:#1a1a1a;border:1px solid #333;color:#eee;padding:6px 10px;border-radius:8px;font-size:13px;">
+    <button id="memoAddBtn" style="background:#5c6bc0;color:#fff;border:none;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:13px;height:32px;white-space:nowrap;">添加</button>
+  </div>
+  <div id="memoList"></div>
+  <div style="text-align:right;margin-top:12px;"><button id="memoCloseBtn" style="background:#333;color:#ccc;border:none;padding:8px 18px;border-radius:8px;cursor:pointer;font-size:14px;">关闭</button></div>
+</div>
+
+<!-- 设置弹窗 -->
+<div id="settingsOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;"></div>
+<div id="settingsModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#111;border:1px solid #333;border-radius:16px;padding:24px;z-index:2001;width:380px;max-height:80vh;overflow-y:auto;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <h3 style="color:#ddd;font-size:15px;margin:0;">⚙️ 设置</h3>
+    <button id="settingsCloseBtn" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer;padding:0 4px;">✕</button>
+  </div>
+  <div style="margin-bottom:16px;">
+    <button id="settingsAddLinkBtn" style="background:#1a1a1a;border:1px solid #333;color:#ccc;padding:10px 16px;border-radius:8px;cursor:pointer;font-size:13px;width:100%;text-align:left;">🔗 添加网址</button>
+  </div>
+  <div style="margin-bottom:16px;">
+    <h4 style="font-size:13px;color:#888;margin-bottom:10px;">🔤 字体</h4>
+    <select id="fontSelect" style="background:#1a1a1a;border:1px solid #333;color:#eee;padding:8px 12px;border-radius:8px;font-size:13px;width:100%;">
+      <option value="'Microsoft YaHei',sans-serif">微软雅黑</option>
+      <option value="'SimHei',sans-serif">黑体</option>
+      <option value="'SimSun',serif">宋体</option>
+      <option value="'KaiTi',serif">楷体</option>
+      <option value="'FangSong',serif">仿宋</option>
+      <option value="'DengXian',sans-serif">等线</option>
+      <option value="'YouYuan',sans-serif">幼圆</option>
+      <option value="'LiSu',sans-serif">隶书</option>
+      <option value="'STXingkai',serif">华文行楷</option>
+      <option value="'STCaiyun',sans-serif">华文彩云</option>
+      <option value="'Segoe UI',sans-serif">Segoe UI</option>
+      <option value="'Consolas',monospace">Consolas</option>
+    </select>
+  </div>
+  <div>
+    <h4 style="font-size:13px;color:#888;margin-bottom:10px;">💾 数据</h4>
+    <div style="display:flex;gap:10px;">
+      <button id="exportBtn" style="background:#5c6bc0;color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;flex:1;">导出配置</button>
+      <label style="background:#26a69a;color:#fff;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;flex:1;text-align:center;">导入配置<input id="importFile" type="file" accept=".json" style="display:none;"></label>
+    </div>
+  </div>
+</div>
+
+<!-- 悬浮提示 -->
 <div id="dayTooltip" style="display:none;position:fixed;background:#222;color:#ddd;padding:8px 14px;border-radius:10px;font-size:13px;z-index:999;pointer-events:none;border:1px solid #333;white-space:nowrap;"></div>
 
-<button onclick="toggleSettings()" title="设置" style="position:fixed;bottom:28px;right:28px;width:52px;height:52px;border-radius:50%;background:#1a1a1a;border:1px solid #333;font-size:24px;cursor:pointer;z-index:1000;display:flex;align-items:center;justify-content:center;transition:transform .2s,background .2s;">⚙️</button>
-<div id="settingsOverlay" onclick="toggleSettings()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1001;"></div>
-<div id="settingsPanel" style="position:fixed;bottom:0;right:0;width:380px;max-width:100vw;max-height:85vh;background:#111;border:1px solid #222;border-radius:16px 16px 0 0;z-index:1002;transform:translateY(100%);transition:transform .3s ease;overflow-y:auto;">
-  <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #222;font-size:16px;font-weight:600;color:#ddd;position:sticky;top:0;background:#111;z-index:1;">
-    <span>⚙️ 设置</span>
-    <button onclick="toggleSettings()" style="background:none;border:none;color:#888;font-size:20px;cursor:pointer;">✕</button>
-  </div>
-  <div style="padding:16px 20px;">
-    <h3 style="font-size:14px;color:#888;font-weight:500;margin-bottom:12px;">🔤 字体设置</h3>
-    <div style="display:flex;align-items:center;gap:10px;">
-      <select id="fontSelect" style="background:#1a1a1a;border:1px solid #333;color:#eee;padding:8px 12px;border-radius:8px;font-size:14px;flex:1;">
-        <option value="'Segoe UI', 'Microsoft YaHei', sans-serif">默认（微软雅黑）</option>
-        <option value="'PingFang SC', 'Hiragino Sans GB', sans-serif">苹方</option>
-        <option value="'Source Han Sans SC', 'Noto Sans SC', sans-serif">思源黑体</option>
-        <option value="'SimSun', 'STSong', serif">宋体</option>
-        <option value="'KaiTi', 'STKaiti', serif">楷体</option>
-        <option value="'FangSong', 'STFangsong', serif">仿宋</option>
-        <option value="'Courier New', 'Consolas', monospace">等宽字体</option>
-      </select>
-      <button onclick="saveFont()" style="background:#4caf50;color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:14px;">保存</button>
-    </div>
-    <div style="margin-top:8px;">
-      <input id="customFontInput" type="text" placeholder="或输入自定义字体名称" style="background:#1a1a1a;border:1px solid #333;color:#eee;padding:8px 12px;border-radius:8px;font-size:14px;width:100%;">
-    </div>
+<!-- 右下角设置按钮 -->
+<button id="settingsFloatBtn" style="position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:#1a1a1a;border:1px solid #333;font-size:22px;cursor:pointer;z-index:1000;display:flex;align-items:center;justify-content:center;">⚙️</button>
+
+<!-- 主内容 -->
+<div class="dashboard">
+  <div class="col-left" id="colLeft"></div>
+  <div class="col-mid" id="colMid"></div>
+  <div class="right-panel">
+    <div style="font-size:14px;color:#555;margin-bottom:16px;">常用网址</div>
+    <div class="links-grid" id="linksGrid"></div>
   </div>
 </div>
 
-<script>
-// ========== 农历算法 ==========
-const lunarInfo=[0x04bd8,0x04ae0,0x0a570,0x054d5,0x0d260,0x0d950,0x16554,0x056a0,0x09ad0,0x055d2,0x04ae0,0x0a5b6,0x0a4d0,0x0d250,0x1d255,0x0b540,0x0d6a0,0x0ada2,0x095b0,0x14977,0x04970,0x0a4b0,0x0b4b5,0x06a50,0x06d40,0x1ab54,0x02b60,0x09570,0x052f2,0x04970,0x06566,0x0d4a0,0x0ea50,0x16a95,0x05ad0,0x02b60,0x186e3,0x092e0,0x1c8d7,0x0c950,0x0d4a0,0x1d8a6,0x0b550,0x056a0,0x1a5b4,0x025d0,0x092d0,0x0d2b2,0x0a950,0x0b557,0x06ca0,0x0b550,0x15355,0x04da0,0x0a5b0,0x14573,0x052b0,0x0a9a8,0x0e950,0x06aa0,0x0aea6,0x0ab50,0x04b60,0x0aae4,0x0a570,0x05260,0x0f263,0x0d950,0x05b57,0x056a0,0x096d0,0x04dd5,0x04ad0,0x0a4d0,0x0d4d4,0x0d250,0x0d558,0x0b540,0x0b6a0,0x195a6,0x095b0,0x049b0,0x0a974,0x0a4b0,0x0b27a,0x06a50,0x06d40,0x0af46,0x0ab60,0x09570,0x04af5,0x04970,0x064b0,0x074a3,0x0ea50,0x06b58,0x05ac0,0x0ab60,0x096d5,0x092e0,0x0c960,0x0d954,0x0d4a0,0x0da50,0x07552,0x056a0,0x0abb7,0x025d0,0x092d0,0x0cab5,0x0a950,0x0b4a0,0x0baa4,0x0ad50,0x055d9,0x04ba0,0x0a5b0,0x15176,0x052b0,0x0a930,0x07954,0x06aa0,0x0ad50,0x05b52,0x04b60,0x0a6e6,0x0a4e0,0x0d260,0x0ea65,0x0d530,0x05aa0,0x076a3,0x096d0,0x04afb,0x04ad0,0x0a4d0,0x1d0b6,0x0d250,0x0d520,0x0dd45,0x0b5a0,0x056d0,0x055b2,0x049b0,0x0a577,0x0a4b0,0x0aa50,0x1b255,0x06d20,0x0ada0,0x14b63,0x09370,0x049f8,0x04970,0x064b0,0x168a6,0x0ea50,0x06aa0,0x1a6c4,0x0aae0,0x092e0,0x0d2e3,0x0c960,0x0d557,0x0d4a0,0x0da50,0x05d55,0x056a0,0x0a6d0,0x055d4,0x052d0,0x0a9b8,0x0a950,0x0b4a0,0x0b6a6,0x0ad50,0x055a0,0x0aba4,0x0a5b0,0x052b0,0x0b273,0x06930,0x07337,0x06aa0,0x0ad50,0x14b55,0x04b60,0x0a570,0x054e4,0x0d160,0x0e968,0x0d520,0x0daa0,0x16aa6,0x056d0,0x04ae0,0x0a9d4,0x0a4d0,0x0d150,0x0f252,0x0d520];
-const lunarMonthStr=['正','二','三','四','五','六','七','八','九','十','冬','腊'];
-const lunarDayStr=['初一','初二','初三','初四','初五','初六','初七','初八','初九','初十','十一','十二','十三','十四','十五','十六','十七','十八','十九','二十','廿一','廿二','廿三','廿四','廿五','廿六','廿七','廿八','廿九','三十'];
-function lYearDays(y){let s=348;for(let i=0x8000;i>0x8;i>>=1)s+=(lunarInfo[y-1900]&i)?1:0;return s+lLeapDays(y)}
-function lLeapDays(y){if(lLeapMonth(y))return(lunarInfo[y-1900]&0x10000)?30:29;return 0}
-function lLeapMonth(y){return lunarInfo[y-1900]&0xf}
-function lMonthDays(y,m){return(lunarInfo[y-1900]&(0x10000>>m))?30:29}
-function solarToLunar(yy,mm,dd){let offset=Math.floor((Date.UTC(yy,mm,dd)-Date.UTC(1900,0,31))/86400000);let y=1900;for(;y<2101&&offset>0;y++){let d=lYearDays(y);if(offset<d)break;offset-=d}if(offset<0){offset+=lYearDays(--y)}let leap=lLeapMonth(y),isLeap=false,m=1;for(;m<13&&offset>0;m++){if(leap>0&&m===(leap+1)&&!isLeap){--m;isLeap=true;let d=lLeapDays(y);if(offset<d)break;offset-=d;isLeap=false;}else{let d=lMonthDays(y,m);if(offset<d)break;offset-=d;}}return{month:m,day:offset+1,isLeap:isLeap}}
-function getLunarDayText(y,m,d){const l=solarToLunar(y,m,d);if(l.day===1)return(l.isLeap?'闰':'')+lunarMonthStr[l.month-1]+'月';return lunarDayStr[l.day-1]}
-function lunarToSolar(year,lMonth,lDay){let offset=0;for(let m=1;m<lMonth;m++){offset+=lMonthDays(year,m);if(lLeapMonth(year)===m)offset+=lLeapDays(year)}offset+=lDay-1;let totalDays=0;for(let y=1900;y<year;y++)totalDays+=lYearDays(y);totalDays+=offset;return new Date(Date.UTC(1900,0,31)+totalDays*86400000)}
-
-// ========== 统一事件系统 ==========
-// 事件结构: { name, cycle:'monthly'|'yearly'|'yearly-lunar', month, day, color, hidden }
-// 内置春节不可删除
-function getEvents() { return JSON.parse(localStorage.getItem('customEvents') || '[]'); }
-function saveEvents(list) { localStorage.setItem('customEvents', JSON.stringify(list)); }
-
-function getNextOccurrence(evt) {
-  const now = new Date(); now.setHours(0,0,0,0);
-  if (evt.cycle === 'monthly') {
-    let d = new Date(now.getFullYear(), now.getMonth(), evt.day); d.setHours(0,0,0,0);
-    if (d < now) d = new Date(now.getFullYear(), now.getMonth() + 1, evt.day);
-    return d;
-  }
-  if (evt.cycle === 'yearly-lunar') {
-    for (let y = now.getFullYear(); y <= now.getFullYear() + 1; y++) {
-      for (let ly = y - 1; ly <= y; ly++) {
-        try { const d = lunarToSolar(ly, evt.month, evt.day); d.setHours(0,0,0,0); if (d >= now) return d; } catch(e) {}
-      }
-    }
-    return null;
-  }
-  // yearly solar
-  let d = new Date(now.getFullYear(), evt.month - 1, evt.day); d.setHours(0,0,0,0);
-  if (d < now) d = new Date(now.getFullYear() + 1, evt.month - 1, evt.day);
-  return d;
-}
-
-function getEventSolarDayInMonth(evt, cYear, cMonth) {
-  // 返回该事件在指定公历年月中命中的日期（可能为null）
-  if (evt.cycle === 'monthly') return evt.day;
-  if (evt.cycle === 'yearly-lunar') {
-    for (let ly = cYear - 1; ly <= cYear + 1; ly++) {
-      try { const d = lunarToSolar(ly, evt.month, evt.day); if (d.getFullYear() === cYear && d.getMonth() === cMonth) return d.getDate(); } catch(e) {}
-    }
-    return null;
-  }
-  // yearly solar
-  if (evt.month === cMonth + 1) return evt.day;
-  return null;
-}
-
-function diffDays(a, b) { return Math.ceil((a - b) / 86400000); }
-
-// 春节（内置）
-const springDates={2025:'2025-01-29',2026:'2026-02-17',2027:'2027-02-06',2028:'2028-01-26',2029:'2029-02-13',2030:'2030-02-03'};
-function getNextSpringFestival(){const today=new Date();today.setHours(0,0,0,0);for(let y=today.getFullYear();y<=2030;y++){if(springDates[y]){const d=new Date(springDates[y]);d.setHours(0,0,0,0);if(d>=today)return d;}}return null}
-
-// ========== 事件管理UI ==========
-function toggleEvtPanel() {
-  document.getElementById('evtPanel').classList.toggle('open');
-}
-
-function addEvent() {
-  const name = document.getElementById('evtName').value.trim();
-  const icon = document.getElementById('evtIcon').value.trim();
-  const cycle = document.getElementById('evtCycle').value;
-  const month = parseInt(document.getElementById('evtMonth').value);
-  const day = parseInt(document.getElementById('evtDay').value);
-  const color = document.getElementById('evtColor').value;
-  if (!name) { alert('请输入名称'); return; }
-  if (cycle === 'monthly') {
-    if (!day || day < 1 || day > 31) { alert('请输入正确的日期'); return; }
-  } else {
-    if (!month || !day || month < 1 || month > 12 || day < 1 || day > 31) { alert('请输入正确的月和日'); return; }
-  }
-  const list = getEvents();
-  list.push({ name, icon: icon || '📌', cycle, month: month || 0, day, color, hidden: false });
-  saveEvents(list);
-  document.getElementById('evtName').value = '';
-  document.getElementById('evtIcon').value = '';
-  document.getElementById('evtMonth').value = '';
-  document.getElementById('evtDay').value = '';
-  document.getElementById('evtEmojiPicker').style.display = 'none';
-  renderAll();
-}
-
-function removeEvent(idx) { const list = getEvents(); list.splice(idx, 1); saveEvents(list); renderAll(); }
-function toggleEventHidden(idx) { const list = getEvents(); list[idx].hidden = !list[idx].hidden; saveEvents(list); renderAll(); }
-
-function renderEvtList() {
-  const el = document.getElementById('evtList'), list = getEvents();
-  if (!list.length) { el.innerHTML = '<span style="color:#555;font-size:12px;">还没有自定义事件，试试添加发薪日或生日吧</span>'; return; }
-  el.innerHTML = list.map((e, i) => {
-    const cycleLabel = e.cycle === 'monthly' ? '每月' : (e.cycle === 'yearly-lunar' ? '每年农历' : '每年');
-    const dateStr = e.cycle === 'monthly' ? `${e.day}日` :
-      (e.cycle === 'yearly-lunar' ? `${lunarMonthStr[e.month-1]}月${lunarDayStr[e.day-1]}` : `${e.month}月${e.day}日`);
-    const hiddenStyle = e.hidden ? 'opacity:.4;' : '';
-    const eyeIcon = e.hidden ? '👁️‍🗨️' : '👁️';
-    return `<div class="evt-list-item" style="${hiddenStyle}">
-      <span style="font-size:16px;">${e.icon||'📌'}</span>
-      <span class="evt-dot" style="background:${e.color}"></span>
-      <span style="flex:1;">${e.name} · ${cycleLabel}${dateStr}</span>
-      <button onclick="toggleEventHidden(${i})" title="${e.hidden?'显示':'隐藏'}" style="color:#888;">${eyeIcon}</button>
-      <button onclick="removeEvent(${i})" title="删除" style="color:#e91e63;">✕</button>
-    </div>`;
-  }).join('');
-}
-
-// 根据cycle动态显示/隐藏月份输入
-document.getElementById('evtCycle').addEventListener('change', function() {
-  document.getElementById('evtMonth').style.display = this.value === 'monthly' ? 'none' : '';
-});
-
-// ========== 倒计时渲染 ==========
-function renderCountdowns() {
-  const el = document.getElementById('countdowns'), now = new Date(); now.setHours(0,0,0,0);
-  let items = [];
-
-  // 自定义事件
-  getEvents().forEach(evt => {
-    if (evt.hidden) return;
-    const next = getNextOccurrence(evt);
-    if (!next) return;
-    const d = diffDays(next, now);
-    items.push({ label: evt.name, days: d, color: evt.color, icon: evt.icon || '📌' });
-  });
-
-  // 按天数排序
-  items.sort((a, b) => a.days - b.days);
-
-  el.innerHTML = items.map(i => {
-    const daysText = i.days === 0 ? '今天！' : `${i.days}<small>天</small>`;
-    return `<div class="countdown-item">
-      <span class="label"><span class="dot" style="background:${i.color}"></span>${i.icon||''} ${i.label}</span>
-      <span class="days" style="color:${i.color}">${daysText}</span>
-    </div>`;
-  }).join('') || '<div style="color:#555;font-size:13px;text-align:center;padding:10px;">暂无倒计时事件</div>';
-}
-
-// ========== 日历 ==========
-let calYear, calMonth;
-(function(){ const n = new Date(); calYear = n.getFullYear(); calMonth = n.getMonth(); })();
-function changeMonth(delta) { calMonth += delta; if (calMonth < 0) { calMonth = 11; calYear--; } if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); }
-
-function renderCalendar() {
-  const grid = document.getElementById('calendarGrid');
-  document.getElementById('monthYear').textContent = `${calYear}年${calMonth + 1}月`;
-  const weekdays = ['日','一','二','三','四','五','六'];
-  let html = weekdays.map(w => `<div class="weekday">${w}</div>`).join('');
-  const firstDay = new Date(calYear, calMonth, 1).getDay();
-  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
-  const prevDays = new Date(calYear, calMonth, 0).getDate();
-  const prevMonth = calMonth === 0 ? 11 : calMonth - 1;
-  const prevYear = calMonth === 0 ? calYear - 1 : calYear;
-  const today = new Date(); today.setHours(0,0,0,0);
-  const events = getEvents();
-  const memos = getMemos();
-
-  for (let i = firstDay - 1; i >= 0; i--) {
-    const d = prevDays - i;
-    html += `<div class="day other-month"><span>${d}</span><span class="lunar">${getLunarDayText(prevYear, prevMonth, d)}</span></div>`;
-  }
-  for (let d = 1; d <= daysInMonth; d++) {
-    let cls = 'day';
-    let tags = [];
-    let evtColor = null;
-    if (calYear === today.getFullYear() && calMonth === today.getMonth() && d === today.getDate()) { cls += ' today'; tags.push('今天'); }
-    // 匹配事件
-    events.forEach(evt => {
-      const sd = getEventSolarDayInMonth(evt, calYear, calMonth);
-      if (sd === d) { tags.push(evt.name); if (!evtColor) evtColor = evt.color; }
-    });
-    // 匹配备忘
-    const dateKey = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const dayMemos = memos.filter(m => m.date === dateKey);
-    if (dayMemos.length) { dayMemos.forEach(m => { tags.push('📝 ' + m.text); if (!evtColor) evtColor = m.color || '#5c6bc0'; }); }
-    if (evtColor) cls += ' event-marked';
-    const style = evtColor ? ` style="--evt-color:${evtColor}"` : '';
-    html += `<div class="${cls}"${style} data-tags="${tags.join(' / ')}"><span>${d}</span><span class="lunar">${getLunarDayText(calYear, calMonth, d)}</span></div>`;
-  }
-  const totalCells = firstDay + daysInMonth;
-  const remaining = (7 - totalCells % 7) % 7;
-  const nextMonth = calMonth === 11 ? 0 : calMonth + 1;
-  const nextYear = calMonth === 11 ? calYear + 1 : calYear;
-  for (let i = 1; i <= remaining; i++) {
-    html += `<div class="day other-month"><span>${i}</span><span class="lunar">${getLunarDayText(nextYear, nextMonth, i)}</span></div>`;
-  }
-  grid.innerHTML = html;
-  grid.querySelectorAll('.day[data-tags]').forEach(el => {
-    el.addEventListener('mouseenter', showTooltip);
-    el.addEventListener('mousemove', moveTooltip);
-    el.addEventListener('mouseleave', hideTooltip);
-  });
-}
-
-// ========== 悬浮提示 ==========
-const tooltip = document.getElementById('dayTooltip');
-function showTooltip(e) { const t = e.currentTarget.getAttribute('data-tags'); if (!t) return; tooltip.textContent = t; tooltip.style.display = 'block'; moveTooltip(e); }
-function moveTooltip(e) { tooltip.style.left = (e.clientX + 12) + 'px'; tooltip.style.top = (e.clientY - 36) + 'px'; }
-function hideTooltip() { tooltip.style.display = 'none'; }
-
-// ========== Emoji 选择器 ==========
-const emojiList = [
-  '🔍','🌐','🐙','📺','💬','🛒','📰','🤖','🎵','📚',
-  '🏠','⭐','❤️','🔥','💡','🎮','🎬','📷','✈️','🚀',
-  '💻','📱','🖥️','⌨️','🖱️','💾','📁','📂','🗂️','📝',
-  '✏️','📌','📎','🔗','📧','💰','🏦','🛍️','🎁','🎉',
-  '🎂','🍕','🍔','☕','🍺','🍷','🌈','☀️','🌙','⚡',
-  '🔔','🔒','🔑','⚙️','🛠️','🧪','🔬','📊','📈','🗓️',
-  '⏰','🕐','🌍','🗺️','🏢','🏫','🏥','🏪','🏭','🎓',
-  '📖','📕','📗','📘','📙','🔖','🏷️','💎','🎯','🏆',
-];
-
-function toggleEmojiPicker() {
-  const picker = document.getElementById('emojiPicker');
-  if (picker.style.display === 'none') {
-    const grid = document.getElementById('emojiGrid');
-    grid.innerHTML = emojiList.map(e =>
-      `<span onclick="pickEmoji('${e}')" style="font-size:22px;cursor:pointer;padding:4px 6px;border-radius:6px;transition:background .15s;" onmouseenter="this.style.background='#333'" onmouseleave="this.style.background='transparent'">${e}</span>`
-    ).join('');
-    picker.style.display = 'block';
-  } else {
-    picker.style.display = 'none';
-  }
-}
-
-function pickEmoji(emoji) {
-  document.getElementById('linkIcon').value = emoji;
-  document.getElementById('emojiPicker').style.display = 'none';
-  pendingIconImg = null;
-  document.getElementById('iconPreview').innerHTML = '';
-}
-
-// ========== 事件 Emoji 选择器 ==========
-function toggleEvtEmojiPicker() {
-  const picker = document.getElementById('evtEmojiPicker');
-  if (picker.style.display === 'none') {
-    document.getElementById('evtEmojiGrid').innerHTML = emojiList.map(e =>
-      `<span onclick="pickEvtEmoji('${e}')" style="font-size:20px;cursor:pointer;padding:3px 5px;border-radius:6px;transition:background .15s;" onmouseenter="this.style.background='#333'" onmouseleave="this.style.background='transparent'">${e}</span>`
-    ).join('');
-    picker.style.display = 'block';
-  } else {
-    picker.style.display = 'none';
-  }
-}
-function pickEvtEmoji(emoji) {
-  document.getElementById('evtIcon').value = emoji;
-  document.getElementById('evtEmojiPicker').style.display = 'none';
-}
-
-// ========== 快捷网址 ==========
-const SLOT_COUNT = 10;
-function getLinks() { const s = localStorage.getItem('shortcutLinks'); return s ? JSON.parse(s) : Array.from({length:SLOT_COUNT},()=>null); }
-function saveLinks(list) { localStorage.setItem('shortcutLinks', JSON.stringify(list)); }
-let editingSlot = -1, pendingIconImg = null;
-
-function renderShortcuts() {
-  const links = getLinks();
-  document.getElementById('shortcuts').innerHTML = links.map((l, i) => {
-    if (l && l.url) {
-      const iconHtml = l.iconImg ? `<img src="${l.iconImg}" style="width:32px;height:32px;border-radius:6px;object-fit:cover;">` : (l.icon || '🔗');
-      return `<div class="shortcut-item"><a href="${l.url}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:flex;flex-direction:column;align-items:center;text-decoration:none;color:#ccc;width:100%;"><div class="shortcut-icon">${iconHtml}</div><span>${l.name||'未命名'}</span></a><button class="shortcut-del" onclick="event.stopPropagation();deleteLink(${i})">✕</button><div onclick="event.stopPropagation();openLinkModal(${i})" style="position:absolute;bottom:0;right:0;width:18px;height:18px;background:#333;border-radius:50%;font-size:10px;color:#888;text-align:center;line-height:18px;cursor:pointer;display:none;" class="shortcut-edit">✎</div></div>`;
-    }
-    return `<div class="shortcut-item empty" onclick="openLinkModal(${i})" style="cursor:pointer;"><div class="shortcut-icon">+</div><span>添加</span></div>`;
-  }).join('');
-  document.querySelectorAll('.shortcut-item:not(.empty)').forEach(el => {
-    const eb = el.querySelector('.shortcut-edit');
-    if (eb) { el.addEventListener('mouseenter', () => eb.style.display = 'block'); el.addEventListener('mouseleave', () => eb.style.display = 'none'); }
-  });
-}
-function onIconFileChange(e) { const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{pendingIconImg=ev.target.result;document.getElementById('linkIcon').value='';document.getElementById('iconPreview').innerHTML=`<img src="${pendingIconImg}" style="width:24px;height:24px;border-radius:4px;vertical-align:middle;"> 已选择`;};r.readAsDataURL(f); }
-function openLinkModal(idx) { editingSlot=idx;pendingIconImg=null;const links=getLinks(),l=links[idx];document.getElementById('linkName').value=l?(l.name||''):'';document.getElementById('linkUrl').value=l?(l.url||''):'';document.getElementById('linkIcon').value=(l&&!l.iconImg)?(l.icon||''):'';document.getElementById('linkIconFile').value='';document.getElementById('emojiPicker').style.display='none';const p=document.getElementById('iconPreview');if(l&&l.iconImg){pendingIconImg=l.iconImg;p.innerHTML=`<img src="${l.iconImg}" style="width:24px;height:24px;border-radius:4px;vertical-align:middle;"> 当前图片`;}else{p.innerHTML='';}document.getElementById('linkModalTitle').textContent=l&&l.url?'编辑快捷方式':'添加快捷方式';document.getElementById('linkModal').style.display='block';document.getElementById('linkModalOverlay').style.display='block';document.getElementById('linkName').focus(); }
-function closeLinkModal() { document.getElementById('linkModal').style.display='none';document.getElementById('linkModalOverlay').style.display='none';editingSlot=-1;pendingIconImg=null; }
-function saveLinkModal() { const name=document.getElementById('linkName').value.trim();let url=document.getElementById('linkUrl').value.trim();const emoji=document.getElementById('linkIcon').value.trim();if(!url){alert('请输入网址');return;}if(!/^https?:\/\//i.test(url))url='https://'+url;const links=getLinks(),entry={name:name||'未命名',url};if(pendingIconImg){entry.iconImg=pendingIconImg;entry.icon='';}else{entry.icon=emoji||'🔗';entry.iconImg='';}links[editingSlot]=entry;saveLinks(links);closeLinkModal();renderShortcuts(); }
-function deleteLink(idx) { const links=getLinks();links[idx]=null;saveLinks(links);renderShortcuts(); }
-
-// ========== 备忘录 ==========
-function getMemos() { return JSON.parse(localStorage.getItem('memos') || '[]'); }
-function saveMemos(list) { localStorage.setItem('memos', JSON.stringify(list)); }
-
-function toggleMemoPanel() { document.getElementById('memoPanel').classList.toggle('open'); }
-
-const memoColors = ['#5c6bc0','#ef5350','#ab47bc','#26a69a','#ffa726','#42a5f5','#ec407a','#66bb6a','#8d6e63','#78909c'];
-function randomMemoColor() { return memoColors[Math.floor(Math.random() * memoColors.length)]; }
-
-function addMemo() {
-  const date = document.getElementById('memoDate').value;
-  const text = document.getElementById('memoText').value.trim();
-  if (!date || !text) { alert('请选择日期并输入内容'); return; }
-  const list = getMemos();
-  list.push({ date, text, color: randomMemoColor() });
-  list.sort((a, b) => a.date.localeCompare(b.date));
-  saveMemos(list);
-  document.getElementById('memoText').value = '';
-  renderAll();
-}
-
-function removeMemo(idx) { const list = getMemos(); list.splice(idx, 1); saveMemos(list); renderAll(); }
-
-function renderMemoList() {
-  const el = document.getElementById('memoList'), list = getMemos();
-  // 默认日期设为今天
-  const t = new Date(); document.getElementById('memoDate').value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
-  if (!list.length) { el.innerHTML = '<span style="color:#555;font-size:12px;">暂无备忘</span>'; return; }
-  const today = new Date(); today.setHours(0,0,0,0);
-  el.innerHTML = list.map((m, i) => {
-    const d = new Date(m.date); d.setHours(0,0,0,0);
-    const isPast = d < today;
-    const dateStr = m.date.replace(/-/g, '/');
-    return `<div class="evt-list-item" style="${isPast ? 'opacity:.4;' : ''}">
-      <span class="evt-dot" style="background:${m.color||'#5c6bc0'}"></span>
-      <span style="color:${m.color||'#5c6bc0'};font-size:12px;white-space:nowrap;">${dateStr}</span>
-      <span style="flex:1;">${m.text}</span>
-      <button onclick="removeMemo(${i})" title="删除" style="color:#e91e63;">✕</button>
-    </div>`;
-  }).join('');
-}
-
-// ========== 设置面板 ==========
-function toggleSettings() { const o=document.getElementById('settingsOverlay'),p=document.getElementById('settingsPanel');o.style.display=o.style.display==='block'?'none':'block';p.style.transform=p.style.transform==='translateY(0px)'?'translateY(100%)':'translateY(0px)'; }
-function applyFont() { document.body.style.fontFamily = localStorage.getItem('customFont') || "'Segoe UI', 'Microsoft YaHei', sans-serif"; }
-function saveFont() { const c=document.getElementById('customFontInput').value.trim(),s=document.getElementById('fontSelect').value;localStorage.setItem('customFont',c?`'${c}', sans-serif`:s);applyFont(); }
-function initFontUI() { const saved=localStorage.getItem('customFont')||"'Segoe UI', 'Microsoft YaHei', sans-serif",sel=document.getElementById('fontSelect');let matched=false;for(const o of sel.options){if(o.value===saved){o.selected=true;matched=true;break;}}if(!matched)document.getElementById('customFontInput').value=saved.replace(/'/g,'').split(',')[0].trim(); }
-
-// ========== 初始化 ==========
-function renderAll() { applyFont(); renderShortcuts(); renderCountdowns(); renderCalendar(); renderEvtList(); renderMemoList(); initFontUI(); }
-renderAll();
-</script>
+<script src="main.js"></script>
 </body>
 </html>

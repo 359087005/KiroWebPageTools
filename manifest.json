@@ -1,0 +1,9 @@
+{
+  "manifest_version": 3,
+  "name": "网页小助手",
+  "version": "1.0.0",
+  "description": "自定义新标签页：常用网址、日历、倒计时、备忘录",
+  "chrome_url_overrides": {
+    "newtab": "index.html"
+  }
+}
