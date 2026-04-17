@@ -25,11 +25,18 @@ body{background:#000;color:#e0e0e0;font-family:'Segoe UI','Microsoft YaHei',sans
 .module-card h3{font-size:15px;color:#888;font-weight:500;margin-bottom:12px;}
 
 /* 网址区 */
-.links-grid{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;align-content:flex-start;}
 .link-item{display:flex;flex-direction:column;align-items:center;width:80px;cursor:pointer;text-decoration:none;color:#ccc;transition:transform .15s;position:relative;}
 .link-item:hover{transform:scale(1.08);color:#fff;}
 .link-icon{width:54px;height:54px;border-radius:14px;background:#1a1a1a;border:1px solid #282828;display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:6px;}
 .link-item span{font-size:12px;text-align:center;line-height:1.3;max-width:76px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.link-item.drag-over .link-icon{border-color:#4caf50;box-shadow:0 0 8px rgba(76,175,80,.4);}
+
+/* 分类 */
+.cat-section{margin-bottom:18px;}
+.cat-header{font-size:13px;color:#666;margin-bottom:10px;padding:4px 8px;border-bottom:1px solid #1a1a1a;display:flex;align-items:center;justify-content:space-between;}
+.cat-header span{pointer-events:none;}
+.cat-links{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;align-content:flex-start;min-height:40px;padding:4px 0;border-radius:8px;transition:background .2s;}
+.cat-links.drag-over-cat{background:rgba(76,175,80,.08);outline:1px dashed #4caf50;outline-offset:-2px;}
 </style>
 </head>
 <body>
@@ -62,6 +69,13 @@ body{background:#000;color:#e0e0e0;font-family:'Segoe UI','Microsoft YaHei',sans
   </div>
   <div id="emojiPicker" style="display:none;margin-bottom:14px;background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:10px;max-height:200px;overflow-y:auto;">
     <div id="emojiGrid" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+    <span style="font-size:13px;color:#888;">分类</span>
+    <select id="linkCatSelect" style="flex:1;background:#1a1a1a;border:1px solid #333;color:#eee;padding:8px 10px;border-radius:8px;font-size:13px;">
+      <option value="">未分类</option>
+    </select>
+    <input id="linkCatNew" type="text" placeholder="新分类名" maxlength="10" style="width:90px;background:#1a1a1a;border:1px solid #333;color:#eee;padding:8px 10px;border-radius:8px;font-size:13px;">
   </div>
   <div style="display:flex;gap:10px;justify-content:flex-end;">
     <button id="linkCancelBtn" style="background:#333;color:#ccc;border:none;padding:8px 18px;border-radius:8px;cursor:pointer;font-size:14px;">取消</button>
@@ -163,6 +177,17 @@ body{background:#000;color:#e0e0e0;font-family:'Segoe UI','Microsoft YaHei',sans
   </div>
 </div>
 
+<!-- 分类重命名弹窗 -->
+<div id="catModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:2000;"></div>
+<div id="catModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#111;border:1px solid #333;border-radius:16px;padding:24px;z-index:2001;width:300px;">
+  <h3 id="catModalTitle" style="color:#ddd;font-size:15px;margin-bottom:14px;">编辑分类</h3>
+  <input id="catNameInput" type="text" placeholder="分类名称" maxlength="10" style="display:block;width:100%;background:#1a1a1a;border:1px solid #333;color:#eee;padding:10px 12px;border-radius:8px;font-size:14px;margin-bottom:14px;">
+  <div style="display:flex;gap:10px;justify-content:flex-end;">
+    <button id="catCancelBtn" style="background:#333;color:#ccc;border:none;padding:8px 18px;border-radius:8px;cursor:pointer;font-size:14px;">取消</button>
+    <button id="catSaveBtn" style="background:#4caf50;color:#fff;border:none;padding:8px 18px;border-radius:8px;cursor:pointer;font-size:14px;">保存</button>
+  </div>
+</div>
+
 <!-- 悬浮提示 -->
 <div id="dayTooltip" style="display:none;position:fixed;background:#222;color:#ddd;padding:8px 14px;border-radius:10px;font-size:13px;z-index:999;pointer-events:none;border:1px solid #333;white-space:nowrap;"></div>
 
@@ -175,7 +200,7 @@ body{background:#000;color:#e0e0e0;font-family:'Segoe UI','Microsoft YaHei',sans
   <div class="col-mid" id="colMid"></div>
   <div class="right-panel">
     <div style="font-size:14px;color:#555;margin-bottom:16px;">常用网址</div>
-    <div class="links-grid" id="linksGrid"></div>
+    <div id="linksGrid"></div>
   </div>
 </div>
 

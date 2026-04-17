@@ -15,6 +15,9 @@ function getModules(){return JSON.parse(localStorage.getItem('dashModules')||'["
 function saveModules(m){localStorage.setItem('dashModules',JSON.stringify(m))}
 function getLinks(){return JSON.parse(localStorage.getItem('shortcutLinks')||'[]')}
 function saveLinks(l){localStorage.setItem('shortcutLinks',JSON.stringify(l))}
+function getCategories(){return JSON.parse(localStorage.getItem('linkCategories')||'[]')}
+function saveCategories(c){localStorage.setItem('linkCategories',JSON.stringify(c))}
+function getAllCatNames(){const cats=getCategories();const linkCats=getLinks().map(l=>l.category||'').filter(c=>c&&!cats.includes(c));return [...cats,...linkCats]}
 function getEvents(){return JSON.parse(localStorage.getItem('customEvents')||'[]')}
 function saveEvents(l){localStorage.setItem('customEvents',JSON.stringify(l))}
 function getMemos(){return JSON.parse(localStorage.getItem('memos')||'[]')}
@@ -50,9 +53,13 @@ document.addEventListener('contextmenu',e=>{
   if(link){e.preventDefault();const idx=parseInt(link.dataset.linkIdx);
     menu.innerHTML='<div class="ctx-item" data-action="editLink" data-idx="'+idx+'">✎ 编辑</div><div class="ctx-item danger" data-action="removeLink" data-idx="'+idx+'">🗑️ 删除</div>';
     showCtx(menu,e);bindCtxActions();return}
+  const catHeader=e.target.closest('.cat-header');
+  if(catHeader){e.preventDefault();const cat=catHeader.dataset.cat;
+    menu.innerHTML='<div class="ctx-item" data-action="renameCat" data-cat="'+cat+'">✎ 重命名</div><div class="ctx-item danger" data-action="removeCat" data-cat="'+cat+'">🗑️ 删除分类</div>';
+    showCtx(menu,e);bindCtxActions();return}
   const panel=e.target.closest('.right-panel');
   if(panel){e.preventDefault();
-    menu.innerHTML='<div class="ctx-item" data-action="addLink">🔗 添加网址</div>';
+    menu.innerHTML='<div class="ctx-item" data-action="addLink">🔗 添加网址</div><div class="ctx-item" data-action="addCat">📁 添加分类</div>';
     showCtx(menu,e);bindCtxActions();return}
 });
 function showCtx(menu,e){menu.style.display='block';menu.style.left=e.clientX+'px';menu.style.top=e.clientY+'px';
@@ -62,12 +69,16 @@ function bindCtxActions(){
     el.addEventListener('click',function(){
       const action=this.dataset.action;
       const idx=parseInt(this.dataset.idx);
+      const cat=this.dataset.cat;
       if(action==='openMemo')openMemoModal();
       if(action==='openEvt')openEvtModal();
       if(action==='openWork')openWorkModal();
       if(action==='editLink')openLinkModal(idx);
       if(action==='removeLink')removeLink(idx);
       if(action==='addLink')openLinkModal(-1);
+      if(action==='addCat')openCatModal('');
+      if(action==='renameCat')openCatModal(cat);
+      if(action==='removeCat')removeCat(cat);
     });
   });
 }
@@ -183,13 +194,84 @@ let editingLinkIdx=-1,pendingIconImg=null;
 const emojiList=['🔍','🌐','🐙','📺','💬','🛒','📰','🤖','🎵','📚','🏠','⭐','❤️','🔥','💡','🎮','🎬','📷','✈️','🚀','💻','📱','🖥️','⌨️','🖱️','💾','📁','📝','✏️','📌','📎','🔗','📧','💰','🏦','🛍️','🎁','🎉','🎂','🍕','🍔','☕','🍺','🌈','☀️','🌙','⚡','🔔','🔒','🔑','⚙️','🛠️','🧪','📊','📈','🗓️','⏰','🌍','🏢','🎓','📖','📕','📗','📘','🔖','💎','🎯','🏆'];
 
 function renderLinks(){
-  const links=getLinks();
-  document.getElementById('linksGrid').innerHTML=links.map((l,i)=>{
-    if(!l)return '';
-    const icon=l.iconImg?`<img src="${l.iconImg}" style="width:30px;height:30px;border-radius:6px;object-fit:cover;">`:(l.icon||'🔗');
-    return `<a class="link-item" href="${l.url}" target="_blank" rel="noopener" data-link-idx="${i}"><div class="link-icon">${icon}</div><span>${l.name||'未命名'}</span></a>`;
-  }).join('');
+  const links=getLinks(),cats=getCategories();
+  const grid=document.getElementById('linksGrid');
+  // group links by category
+  const grouped={};
+  links.forEach((l,i)=>{if(!l)return;const c=l.category||'';if(!grouped[c])grouped[c]=[];grouped[c].push({link:l,idx:i})});
+  let html='';
+  // uncategorized first
+  if(grouped['']&&grouped[''].length){
+    html+=`<div class="cat-section" data-cat=""><div class="cat-links" data-drop-cat="">`;
+    grouped[''].forEach(item=>{html+=renderLinkItem(item.link,item.idx)});
+    html+=`</div></div>`;
+  }
+  // then each category
+  cats.forEach(cat=>{
+    html+=`<div class="cat-section" data-cat="${cat}"><div class="cat-header" data-cat="${cat}"><span>📁 ${cat}</span></div><div class="cat-links" data-drop-cat="${cat}">`;
+    if(grouped[cat]){grouped[cat].forEach(item=>{html+=renderLinkItem(item.link,item.idx)})}
+    html+=`</div></div>`;
+  });
+  grid.innerHTML=html;
+  bindLinkDrag();
 }
+
+function renderLinkItem(l,i){
+  const icon=l.iconImg?`<img src="${l.iconImg}" style="width:30px;height:30px;border-radius:6px;object-fit:cover;">`:(l.icon||'🔗');
+  return `<a class="link-item" href="${l.url}" target="_blank" rel="noopener" data-link-idx="${i}" draggable="true"><div class="link-icon">${icon}</div><span>${l.name||'未命名'}</span></a>`;
+}
+
+let dragFromIdx=null;
+function bindLinkDrag(){
+  const items=document.querySelectorAll('.link-item[data-link-idx]');
+  items.forEach(el=>{
+    el.addEventListener('dragstart',function(e){
+      dragFromIdx=parseInt(this.dataset.linkIdx);
+      this.style.opacity='0.4';
+      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.setData('text/plain',dragFromIdx);
+    });
+    el.addEventListener('dragend',function(){
+      this.style.opacity='1';
+      document.querySelectorAll('.link-item').forEach(x=>x.classList.remove('drag-over'));
+      document.querySelectorAll('.cat-links').forEach(x=>x.classList.remove('drag-over-cat'));
+    });
+    el.addEventListener('dragover',function(e){
+      e.preventDefault();e.dataTransfer.dropEffect='move';
+      this.classList.add('drag-over');
+    });
+    el.addEventListener('dragleave',function(){this.classList.remove('drag-over')});
+    el.addEventListener('drop',function(e){
+      e.preventDefault();e.stopPropagation();
+      this.classList.remove('drag-over');
+      const toIdx=parseInt(this.dataset.linkIdx);
+      if(dragFromIdx===null||dragFromIdx===toIdx)return;
+      const links=getLinks();
+      // match target's category
+      const targetCat=links[toIdx].category||'';
+      links[dragFromIdx].category=targetCat;
+      const [moved]=links.splice(dragFromIdx,1);
+      const newToIdx=links.indexOf(links[toIdx>dragFromIdx?toIdx-1:toIdx]);
+      links.splice(toIdx>dragFromIdx?toIdx:toIdx,0,moved);
+      saveLinks(links);renderLinks();
+    });
+  });
+  // category drop zones
+  document.querySelectorAll('.cat-links[data-drop-cat]').forEach(zone=>{
+    zone.addEventListener('dragover',function(e){e.preventDefault();e.dataTransfer.dropEffect='move';this.classList.add('drag-over-cat')});
+    zone.addEventListener('dragleave',function(e){if(!this.contains(e.relatedTarget))this.classList.remove('drag-over-cat')});
+    zone.addEventListener('drop',function(e){
+      e.preventDefault();this.classList.remove('drag-over-cat');
+      if(dragFromIdx===null)return;
+      const cat=this.dataset.dropCat;
+      const links=getLinks();
+      links[dragFromIdx].category=cat;
+      saveLinks(links);renderLinks();
+    });
+  });
+}
+
+
 
 function openLinkModal(idx){
   editingLinkIdx=idx;pendingIconImg=null;
@@ -200,6 +282,12 @@ function openLinkModal(idx){
   document.getElementById('emojiPicker').style.display='none';
   const p=document.getElementById('iconPreview');
   if(l&&l.iconImg){pendingIconImg=l.iconImg;p.innerHTML=`<img src="${l.iconImg}" style="width:24px;height:24px;border-radius:4px;vertical-align:middle;"> 当前`}else{p.innerHTML=''}
+  // populate category dropdown
+  const sel=document.getElementById('linkCatSelect');
+  const cats=getCategories();
+  sel.innerHTML='<option value="">未分类</option>'+cats.map(c=>`<option value="${c}">${c}</option>`).join('');
+  if(l&&l.category)sel.value=l.category;
+  document.getElementById('linkCatNew').value='';
   document.getElementById('linkModalTitle').textContent=idx>=0?'编辑网址':'添加网址';
   document.getElementById('linkModal').style.display='block';document.getElementById('linkModalOverlay').style.display='block';
   document.getElementById('linkName').focus();
@@ -208,7 +296,11 @@ function closeLinkModal(){document.getElementById('linkModal').style.display='no
 function saveLinkModal(){
   const name=document.getElementById('linkName').value.trim();let url=document.getElementById('linkUrl').value.trim();const emoji=document.getElementById('linkIcon').value.trim();
   if(!url){alert('请输入网址');return}if(!/^https?:\/\//i.test(url))url='https://'+url;
-  const links=getLinks(),entry={name:name||'未命名',url};
+  // determine category
+  const newCat=document.getElementById('linkCatNew').value.trim();
+  let category=document.getElementById('linkCatSelect').value;
+  if(newCat){category=newCat;const cats=getCategories();if(!cats.includes(newCat)){cats.push(newCat);saveCategories(cats)}}
+  const links=getLinks(),entry={name:name||'未命名',url,category:category||''};
   if(pendingIconImg){entry.iconImg=pendingIconImg;entry.icon=''}else{entry.icon=emoji||'🔗';entry.iconImg=''}
   if(editingLinkIdx>=0){links[editingLinkIdx]=entry}else{links.push(entry)}
   saveLinks(links);closeLinkModal();renderAll();
@@ -356,13 +448,53 @@ setInterval(()=>{
   else{const r=endTime-now;const h=Math.floor(r/3600000),m=Math.floor((r%3600000)/60000),sec=Math.floor((r%60000)/1000);el.textContent=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`}
 },1000);
 
+// ========== 分类管理 ==========
+let editingCatName='';
+function openCatModal(oldName){
+  editingCatName=oldName;
+  document.getElementById('catModalTitle').textContent=oldName?'重命名分类':'添加分类';
+  document.getElementById('catNameInput').value=oldName;
+  document.getElementById('catModal').style.display='block';document.getElementById('catModalOverlay').style.display='block';
+  document.getElementById('catNameInput').focus();
+}
+function closeCatModal(){document.getElementById('catModal').style.display='none';document.getElementById('catModalOverlay').style.display='none';editingCatName=''}
+function saveCatModal(){
+  const name=document.getElementById('catNameInput').value.trim();
+  if(!name){alert('请输入分类名称');return}
+  const cats=getCategories();
+  if(editingCatName){
+    // rename
+    const idx=cats.indexOf(editingCatName);
+    if(idx>=0)cats[idx]=name;
+    // update links
+    const links=getLinks();
+    links.forEach(l=>{if(l.category===editingCatName)l.category=name});
+    saveLinks(links);
+  }else{
+    if(cats.includes(name)){alert('分类已存在');return}
+    cats.push(name);
+  }
+  saveCategories(cats);closeCatModal();renderAll();
+}
+function removeCat(cat){
+  const cats=getCategories();
+  const idx=cats.indexOf(cat);
+  if(idx>=0)cats.splice(idx,1);
+  saveCategories(cats);
+  // move links in this category to uncategorized
+  const links=getLinks();
+  links.forEach(l=>{if(l.category===cat)l.category=''});
+  saveLinks(links);
+  renderAll();
+}
+
 // ========== 设置 ==========
 function toggleSettings(){const o=document.getElementById('settingsOverlay'),m=document.getElementById('settingsModal');const show=o.style.display==='none';o.style.display=show?'block':'none';m.style.display=show?'block':'none';if(show)initFontUI()}
 function applyFont(){document.body.style.fontFamily=localStorage.getItem('customFont')||"'Microsoft YaHei',sans-serif"}
 function saveFont(){const s=document.getElementById('fontSelect').value;localStorage.setItem('customFont',s);applyFont()}
 function initFontUI(){const saved=localStorage.getItem('customFont')||"'Microsoft YaHei',sans-serif",sel=document.getElementById('fontSelect');for(const o of sel.options){if(o.value===saved){o.selected=true;break}}}
-function exportConfig(){const data={shortcutLinks:localStorage.getItem('shortcutLinks'),customEvents:localStorage.getItem('customEvents'),memos:localStorage.getItem('memos'),dashModules:localStorage.getItem('dashModules'),customFont:localStorage.getItem('customFont'),workSettings:localStorage.getItem('workSettings'),_exportTime:new Date().toISOString()};const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='网页小助手_配置.json';a.click();URL.revokeObjectURL(a.href)}
-function importConfig(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);['shortcutLinks','customEvents','memos','dashModules','customFont','workSettings'].forEach(k=>{if(d[k])localStorage.setItem(k,d[k])});renderAll();alert('导入成功！')}catch(err){alert('导入失败')}e.target.value=''};r.readAsText(f)}
+function exportConfig(){const data={shortcutLinks:localStorage.getItem('shortcutLinks'),linkCategories:localStorage.getItem('linkCategories'),customEvents:localStorage.getItem('customEvents'),memos:localStorage.getItem('memos'),dashModules:localStorage.getItem('dashModules'),customFont:localStorage.getItem('customFont'),workSettings:localStorage.getItem('workSettings'),_exportTime:new Date().toISOString()};const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='网页小助手_配置.json';a.click();URL.revokeObjectURL(a.href)}
+function importConfig(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);['shortcutLinks','linkCategories','customEvents','memos','dashModules','customFont','workSettings'].forEach(k=>{if(d[k])localStorage.setItem(k,d[k])});renderAll();alert('导入成功！')}catch(err){alert('导入失败')}e.target.value=''};r.readAsText(f)}
 
 // ========== 初始化 & 事件绑定 ==========
 function bindStaticEvents(){
@@ -407,6 +539,11 @@ function bindStaticEvents(){
 
   // 右下角设置按钮
   document.getElementById('settingsFloatBtn').addEventListener('click',toggleSettings);
+
+  // 分类弹窗
+  document.getElementById('catModalOverlay').addEventListener('click',closeCatModal);
+  document.getElementById('catCancelBtn').addEventListener('click',closeCatModal);
+  document.getElementById('catSaveBtn').addEventListener('click',saveCatModal);
 }
 
 function renderAll(){applyFont();renderModules();renderLinks()}
