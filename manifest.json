@@ -1,8 +1,10 @@
 {
   "manifest_version": 3,
   "name": "网页小助手",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "自定义新标签页：常用网址、日历、倒计时、备忘录",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjlXRJzIAIYtvSxDGccZIUTGYkZv5i8kXllowB0L/DlENtmxCAxkdIDHZMSwggU8Q5aIJzpjdZ/4LU2bd7tFWFmWIYD9CoWqeLyg/UgbqjDbKLIR5C9WE5lxeYs8TcIfBVdno9ibPDGKEkdbDxV+sdhbqzYdrOZR5UK4NmLehFKlCXAqM4J1ZZUwpsHtWTXm7KIBCzJoDI79D6SR4GzH+0j3Mu1vvIbPY2VKthpp2KjlTvAVJVt5fCv+5F2k64VZyUdDZxdHY5SEAf4D7Lq/0oj69PFCwUkqBO+6MjW7y/QsFcHxb4+7VynPRkg4x27JYb63NmZUi6UKrdpFAM00rMQIDAQAB",
+  "permissions": ["storage"],
   "chrome_url_overrides": {
     "newtab": "index.html"
   }

@@ -10,18 +10,61 @@ function solarToLunar(yy,mm,dd){let offset=Math.floor((Date.UTC(yy,mm,dd)-Date.U
 function getLunarDayText(y,m,d){const l=solarToLunar(y,m,d);if(l.day===1)return(l.isLeap?'闰':'')+lunarMonthStr[l.month-1]+'月';return lunarDayStr[l.day-1]}
 function lunarToSolar(year,lm,ld){let offset=0;for(let m=1;m<lm;m++){offset+=lMonthDays(year,m);if(lLeapMonth(year)===m)offset+=lLeapDays(year)}offset+=ld-1;let t=0;for(let y=1900;y<year;y++)t+=lYearDays(y);t+=offset;return new Date(Date.UTC(1900,0,31)+t*86400000)}
 
+// ========== 存储层 ==========
+// 文字配置存 chrome.storage.sync：登录同一个 Microsoft 账户并开启“扩展”同步的电脑之间自动同步。
+// 图片超过 sync 单项 8KB 的上限，单独存 chrome.storage.local，只留在本机。
+// 没有 chrome.storage 时（改完代码还没在 edge://extensions 重新加载，或直接打开 index.html）退回 localStorage，和旧版行为一致。
+const CFG_KEYS=['shortcutLinks','linkCategories','customEvents','memos','dashModules','customFont','workSettings'];
+const extStore=(typeof chrome!=='undefined'&&chrome.storage&&chrome.storage.sync)?chrome.storage:null;
+const cfg={};                                // 配置缓存，启动时从存储读入
+const emptyImgs=()=>({workImg:'',linkIcons:{}}); // linkIcons：网址 → 图标图片
+let localImgs=emptyImgs();
+function clone(v){return v==null?v:JSON.parse(JSON.stringify(v))}
+// chrome.storage 读回的对象，键会按字母重新排序，所以比较时忽略键顺序
+function sameData(a,b){const norm=v=>JSON.stringify(v,(k,x)=>x&&typeof x==='object'&&!Array.isArray(x)?Object.keys(x).sort().reduce((o,key)=>(o[key]=x[key],o),{}):x);return norm(a)===norm(b)}
+function readCfg(k,def){return clone(cfg[k]!=null?cfg[k]:def)}
+// 写入成功返回 true，失败时提示并返回 false
+function writeCfg(k,v){
+  cfg[k]=clone(v);
+  if(!extStore){localStorage.setItem(k,k==='customFont'?v:JSON.stringify(v));return Promise.resolve(true)}
+  return extStore.sync.set({[k]:cfg[k]}).then(()=>true,err=>{alert('保存失败：'+err.message+'\n（同步存储每项最多 8KB，总共最多 100KB）');return false});
+}
+function writeLocalImgs(){if(extStore)extStore.local.set({localImages:localImgs}).catch(err=>alert('图片保存失败：'+err.message))}
+async function loadStore(){
+  if(!extStore){CFG_KEYS.forEach(k=>{const s=localStorage.getItem(k);if(s==null)return;try{cfg[k]=k==='customFont'?s:JSON.parse(s)}catch(e){}});return}
+  const [s,l]=await Promise.all([extStore.sync.get(CFG_KEYS),extStore.local.get('localImages')]);
+  Object.assign(cfg,s);localImgs={...emptyImgs(),...l.localImages};
+}
+// 其他电脑同步过来的修改、或本机其他标签页的修改，更新缓存后重绘
+function watchStore(){
+  if(!extStore)return;
+  extStore.onChanged.addListener((changes,area)=>{
+    let dirty=false;
+    if(area==='sync')CFG_KEYS.forEach(k=>{if(!(k in changes))return;const v=changes[k].newValue;if(sameData(v,cfg[k]))return;if(v===undefined)delete cfg[k];else cfg[k]=v;dirty=true});
+    if(area==='local'&&changes.localImages&&!sameData(changes.localImages.newValue,localImgs)){localImgs={...emptyImgs(),...changes.localImages.newValue};dirty=true}
+    if(dirty)renderAll();
+  });
+}
+
 // ========== 数据层 ==========
-function getModules(){return JSON.parse(localStorage.getItem('dashModules')||'["calendar","countdown","workoff"]')}
-function saveModules(m){localStorage.setItem('dashModules',JSON.stringify(m))}
-function getLinks(){return JSON.parse(localStorage.getItem('shortcutLinks')||'[]')}
-function saveLinks(l){localStorage.setItem('shortcutLinks',JSON.stringify(l))}
-function getCategories(){return JSON.parse(localStorage.getItem('linkCategories')||'[]')}
-function saveCategories(c){localStorage.setItem('linkCategories',JSON.stringify(c))}
+function getModules(){return readCfg('dashModules',['calendar','countdown','workoff'])}
+function saveModules(m){return writeCfg('dashModules',m)}
+function getLinks(){const links=readCfg('shortcutLinks',[]);if(extStore)links.forEach(l=>{if(l&&!l.iconImg&&localImgs.linkIcons[l.url])l.iconImg=localImgs.linkIcons[l.url]});return links}
+function saveLinks(l){
+  if(!extStore)return writeCfg('shortcutLinks',l);
+  // 图标图片按网址存本机，同步的数据里不带图片
+  const icons={};
+  const p=writeCfg('shortcutLinks',l.map(x=>{if(!x||!x.iconImg)return x;icons[x.url]=x.iconImg;return {...x,iconImg:''}}));
+  if(!sameData(icons,localImgs.linkIcons)){localImgs.linkIcons=icons;writeLocalImgs()}
+  return p;
+}
+function getCategories(){return readCfg('linkCategories',[])}
+function saveCategories(c){return writeCfg('linkCategories',c)}
 function getAllCatNames(){const cats=getCategories();const linkCats=getLinks().map(l=>l.category||'').filter(c=>c&&!cats.includes(c));return [...cats,...linkCats]}
-function getEvents(){return JSON.parse(localStorage.getItem('customEvents')||'[]')}
-function saveEvents(l){localStorage.setItem('customEvents',JSON.stringify(l))}
-function getMemos(){return JSON.parse(localStorage.getItem('memos')||'[]')}
-function saveMemos(l){localStorage.setItem('memos',JSON.stringify(l))}
+function getEvents(){return readCfg('customEvents',[])}
+function saveEvents(l){return writeCfg('customEvents',l)}
+function getMemos(){return readCfg('memos',[])}
+function saveMemos(l){return writeCfg('memos',l)}
 function diffDays(a,b){return Math.ceil((a-b)/86400000)}
 
 // ========== 事件系统 ==========
@@ -368,8 +411,13 @@ function moveTooltip(e){tooltip.style.left=(e.clientX+12)+'px';tooltip.style.top
 function hideTooltip(){tooltip.style.display='none'}
 
 // ========== 下班倒计时 ==========
-function getWorkSettings(){return JSON.parse(localStorage.getItem('workSettings')||'{"start":"09:00:00","end":"18:00:00","img":""}')}
-function saveWorkSettingsData(d){localStorage.setItem('workSettings',JSON.stringify(d))}
+function getWorkSettings(){const s=readCfg('workSettings',{start:'09:00:00',end:'18:00:00',img:''});if(extStore)s.img=localImgs.workImg||'';return s}
+function saveWorkSettingsData(d){
+  if(!extStore)return writeCfg('workSettings',d);
+  const p=writeCfg('workSettings',{...d,img:''}); // 图片只存本机
+  if((d.img||'')!==localImgs.workImg){localImgs.workImg=d.img||'';writeLocalImgs()}
+  return p;
+}
 let pendingWorkImg=null;
 
 function openWorkModal(){
@@ -490,11 +538,25 @@ function removeCat(cat){
 
 // ========== 设置 ==========
 function toggleSettings(){const o=document.getElementById('settingsOverlay'),m=document.getElementById('settingsModal');const show=o.style.display==='none';o.style.display=show?'block':'none';m.style.display=show?'block':'none';if(show)initFontUI()}
-function applyFont(){document.body.style.fontFamily=localStorage.getItem('customFont')||"'Microsoft YaHei',sans-serif"}
-function saveFont(){const s=document.getElementById('fontSelect').value;localStorage.setItem('customFont',s);applyFont()}
-function initFontUI(){const saved=localStorage.getItem('customFont')||"'Microsoft YaHei',sans-serif",sel=document.getElementById('fontSelect');for(const o of sel.options){if(o.value===saved){o.selected=true;break}}}
-function exportConfig(){const data={shortcutLinks:localStorage.getItem('shortcutLinks'),linkCategories:localStorage.getItem('linkCategories'),customEvents:localStorage.getItem('customEvents'),memos:localStorage.getItem('memos'),dashModules:localStorage.getItem('dashModules'),customFont:localStorage.getItem('customFont'),workSettings:localStorage.getItem('workSettings'),_exportTime:new Date().toISOString()};const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='网页小助手_配置.json';a.click();URL.revokeObjectURL(a.href)}
-function importConfig(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);['shortcutLinks','linkCategories','customEvents','memos','dashModules','customFont','workSettings'].forEach(k=>{if(d[k])localStorage.setItem(k,d[k])});renderAll();alert('导入成功！')}catch(err){alert('导入失败')}e.target.value=''};r.readAsText(f)}
+function getFont(){return cfg.customFont||"'Microsoft YaHei',sans-serif"}
+function applyFont(){document.body.style.fontFamily=getFont()}
+function saveFont(){writeCfg('customFont',document.getElementById('fontSelect').value);applyFont()}
+function initFontUI(){const saved=getFont(),sel=document.getElementById('fontSelect');for(const o of sel.options){if(o.value===saved){o.selected=true;break}}}
+// 导出格式与旧版相同：每项是 JSON 字符串（字体是原始字符串），包含本机图片，新旧版本可互相导入
+function exportConfig(){
+  const full={...cfg,shortcutLinks:cfg.shortcutLinks!=null?getLinks():null,workSettings:cfg.workSettings!=null?getWorkSettings():null};
+  const data={};CFG_KEYS.forEach(k=>{const v=full[k];data[k]=v==null?null:(k==='customFont'?v:JSON.stringify(v))});
+  data._exportTime=new Date().toISOString();
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='网页小助手_配置.json';a.click();URL.revokeObjectURL(a.href)}
+function importConfig(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{
+  e.target.value='';const vals={};
+  // 先全部解析、校验，再写入，避免只导入一半
+  try{const d=JSON.parse(ev.target.result);CFG_KEYS.forEach(k=>{if(!d[k])return;const v=(typeof d[k]==='string'&&k!=='customFont')?JSON.parse(d[k]):d[k];
+    const ok=k==='customFont'?typeof v==='string':(k==='workSettings'?(v&&typeof v==='object'):Array.isArray(v));if(!ok)throw new Error(k);vals[k]=v})}
+  catch(err){alert('导入失败');return}
+  Promise.all(Object.keys(vals).map(k=>k==='shortcutLinks'?saveLinks(vals[k]):(k==='workSettings'?saveWorkSettingsData(vals[k]):writeCfg(k,vals[k]))))
+    .then(res=>{renderAll();if(res.every(Boolean))alert('导入成功！')});
+};r.readAsText(f)}
 
 // ========== 初始化 & 事件绑定 ==========
 function bindStaticEvents(){
@@ -548,4 +610,4 @@ function bindStaticEvents(){
 
 function renderAll(){applyFont();renderModules();renderLinks()}
 bindStaticEvents();
-renderAll();
+loadStore().then(()=>{watchStore();renderAll()},err=>alert('读取配置失败：'+err.message));
